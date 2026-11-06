@@ -23,12 +23,12 @@ wss.on('connection', (ws) => {
 
         for(const client of wss.clients){
             if(client.readyState === 1){
-                client.send(`${message}`)
+                client.send(JSON.stringify(msg))
             }
         }
     });
 
-    ws.on('close', () => console.log("cliend disconnected"));
+    ws.on('close', () => console.log("client disconnected"));
 
 });
 
