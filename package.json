@@ -4,13 +4,26 @@
   "description": "",
   "main": "server/server.js",
   "scripts": {
-    "dev": "node --watch server/server.js"
+    "dev": "node --watch server/server.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module", 
+  "type": "module",
   "dependencies": {
     "ws": "^8.22.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10"
+  },
+  "overrides": {
+    "minimatch": "^11.0.5"
   }
 }
