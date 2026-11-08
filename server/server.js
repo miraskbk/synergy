@@ -1,11 +1,9 @@
 import { WebSocketServer } from 'ws'
 import { parseMessage, makeMessage, sendError } from './protocol.js'
 import { createHub } from './hub.js'
-
-const PORT = Number(process.env.PORT) || 8080
-const MAX_NAME_LENGTH = 32
-const MAX_TEXT_LENGTH = 4000
-const HEARTBEAT_INTERVAL_MS = Number(process.env.HEARTBEAT_MS) || 30_000
+import { PORT, HEARTBEAT_INTERVAL_MS } from './config.js'
+import { handleChat } from './handlers/chat.js'
+import { handleJoin } from './handlers/join.js'
 
 const wss = new WebSocketServer({ port: PORT, maxPayload: 16 * 1024 })
 const hub = createHub(wss)
@@ -18,32 +16,6 @@ wss.on('error', (err) => {
   }
   process.exit(1)
 })
-
-function handleJoin(ws, msg) {
-  if (ws.user) return sendError(ws, 'already joined')
-  if (typeof msg.user !== 'string') return sendError(ws, 'user must be a string')
-
-  const name = msg.user.trim()
-  if (name.length === 0 || name.length > MAX_NAME_LENGTH) {
-    return sendError(ws, `name must be 1 - ${MAX_NAME_LENGTH} characters`)
-  }
-
-  if (hub.isNameTaken(name)) return sendError(ws, 'name already taken')
-
-  ws.user = name
-  hub.broadcast(makeMessage('system', { text: `${name} joined` }))
-}
-
-function handleChat(ws, msg) {
-  if (!ws.user) return sendError(ws, 'join first')
-  if (typeof msg.text !== 'string') return sendError(ws, 'text must be a string')
-  if (msg.text.trim().length === 0) return sendError(ws, 'message is empty')
-  if (msg.text.length > MAX_TEXT_LENGTH) {
-    return sendError(ws, `message longer than ${MAX_TEXT_LENGTH} characters`)
-  }
-
-  hub.broadcast(makeMessage('chat', { user: ws.user, text: msg.text }))
-}
 
 const handlers = new Map([
   ['join', handleJoin],
