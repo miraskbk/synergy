@@ -2,13 +2,14 @@
   "name": "synergy",
   "version": "1.0.0",
   "description": "",
-  "main": "server/server.js",
+  "main": "server/index.js",
   "scripts": {
-    "dev": "node --watch server/server.js",
+    "dev": "node --watch server/index.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "start": "node server/index.js"
   },
   "keywords": [],
   "author": "",
