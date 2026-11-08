@@ -1,6 +1,5 @@
 import { WebSocketServer, WebSocket } from 'ws'
-import { randomUUID } from 'node:crypto'
-
+import { parseMessage, makeMessage, sendError } from './protocol.js'
 const PORT = Number(process.env.PORT) || 8080
 const MAX_NAME_LENGTH = 32
 const MAX_TEXT_LENGTH = 4000
@@ -27,10 +26,6 @@ function broadcast(obj) {
   }
 }
 
-function sendError(ws, text) {
-  ws.send(JSON.stringify({ type: 'error', text }))
-}
-
 function isNameTaken(name) {
   for (const client of wss.clients) {
     if (client.user === name) {
@@ -52,7 +47,7 @@ function handleJoin(ws, msg) {
   if (isNameTaken(name)) return sendError(ws, 'name already taken')
 
   ws.user = name
-  broadcast({ type: 'system', id: randomUUID(), ts: Date.now(), text: `${name} joined` })
+  broadcast(makeMessage('system', { text: `${name} joined` }))
 }
 
 function handleChat(ws, msg) {
@@ -63,13 +58,7 @@ function handleChat(ws, msg) {
     return sendError(ws, `message longer than ${MAX_TEXT_LENGTH} characters`)
   }
 
-  broadcast({
-    type: 'chat',
-    id: randomUUID(),
-    ts: Date.now(),
-    user: ws.user,
-    text: msg.text,
-  })
+  broadcast(makeMessage('chat', { user: ws.user, text: msg.text }))
 }
 
 const handlers = new Map([
@@ -86,20 +75,12 @@ wss.on('connection', (ws) => {
   })
 
   ws.on('error', (err) => {
-    console.error(`socker error (${ws.user ?? 'not joined'}):`, err.message)
+    console.error(`socket error (${ws.user ?? 'not joined'}):`, err.message)
   })
 
   ws.on('message', (data) => {
-    let msg
-    try {
-      msg = JSON.parse(data.toString())
-    } catch {
-      return sendError(ws, 'invalid JSON')
-    }
-
-    if (typeof msg !== 'object' || msg === null || Array.isArray(msg)) {
-      return sendError(ws, 'message must be a JSON object')
-    }
+    const { msg, error } = parseMessage(data)
+    if (error) return sendError(ws, error)
 
     const handler = handlers.get(msg.type)
     if (!handler) return sendError(ws, `unknown message type: ${msg.type}`)
@@ -111,7 +92,7 @@ wss.on('connection', (ws) => {
     console.log('client disconnected')
 
     if (ws.user) {
-      broadcast({ type: 'system', id: randomUUID(), ts: Date.now(), text: `${ws.user} left` })
+      broadcast(makeMessage('system', { text: `${ws.user} left` }))
     }
   })
 })
