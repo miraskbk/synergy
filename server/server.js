@@ -1,11 +1,14 @@
-import { WebSocketServer, WebSocket } from 'ws'
+import { WebSocketServer } from 'ws'
 import { parseMessage, makeMessage, sendError } from './protocol.js'
+import { createHub } from './hub.js'
+
 const PORT = Number(process.env.PORT) || 8080
 const MAX_NAME_LENGTH = 32
 const MAX_TEXT_LENGTH = 4000
 const HEARTBEAT_INTERVAL_MS = Number(process.env.HEARTBEAT_MS) || 30_000
 
 const wss = new WebSocketServer({ port: PORT, maxPayload: 16 * 1024 })
+const hub = createHub(wss)
 
 wss.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
@@ -16,25 +19,6 @@ wss.on('error', (err) => {
   process.exit(1)
 })
 
-function broadcast(obj) {
-  const data = JSON.stringify(obj)
-
-  for (const client of wss.clients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(data)
-    }
-  }
-}
-
-function isNameTaken(name) {
-  for (const client of wss.clients) {
-    if (client.user === name) {
-      return true
-    }
-  }
-  return false
-}
-
 function handleJoin(ws, msg) {
   if (ws.user) return sendError(ws, 'already joined')
   if (typeof msg.user !== 'string') return sendError(ws, 'user must be a string')
@@ -44,10 +28,10 @@ function handleJoin(ws, msg) {
     return sendError(ws, `name must be 1 - ${MAX_NAME_LENGTH} characters`)
   }
 
-  if (isNameTaken(name)) return sendError(ws, 'name already taken')
+  if (hub.isNameTaken(name)) return sendError(ws, 'name already taken')
 
   ws.user = name
-  broadcast(makeMessage('system', { text: `${name} joined` }))
+  hub.broadcast(makeMessage('system', { text: `${name} joined` }))
 }
 
 function handleChat(ws, msg) {
@@ -58,7 +42,7 @@ function handleChat(ws, msg) {
     return sendError(ws, `message longer than ${MAX_TEXT_LENGTH} characters`)
   }
 
-  broadcast(makeMessage('chat', { user: ws.user, text: msg.text }))
+  hub.broadcast(makeMessage('chat', { user: ws.user, text: msg.text }))
 }
 
 const handlers = new Map([
@@ -92,7 +76,7 @@ wss.on('connection', (ws) => {
     console.log('client disconnected')
 
     if (ws.user) {
-      broadcast(makeMessage('system', { text: `${ws.user} left` }))
+      hub.broadcast(makeMessage('system', { text: `${ws.user} left` }))
     }
   })
 })
