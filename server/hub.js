@@ -18,5 +18,6 @@ export function createHub(wss) {
     }
     return false
   }
-  return (broadcast, isNameTaken)
+
+  return { broadcast, isNameTaken }
 }
