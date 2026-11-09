@@ -1,4 +1,4 @@
-import { makeMessage, sendError } from '../protocol.js'
+import { makeMessage, send, sendError } from '../protocol.js'
 import { MAX_NAME_LENGTH } from '../config.js'
 
 export function handleJoin(ws, msg, hub) {
@@ -13,5 +13,6 @@ export function handleJoin(ws, msg, hub) {
   if (hub.isNameTaken(name)) return sendError(ws, 'name already taken')
 
   ws.user = name
+  send(ws, makeMessage('welcome', { user: name, users: hub.onlineUsers() }))
   hub.broadcast(makeMessage('system', { text: `${name} joined` }))
 }

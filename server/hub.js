@@ -19,5 +19,15 @@ export function createHub(wss) {
     return false
   }
 
-  return { broadcast, isNameTaken }
+  function onlineUsers() {
+    const users = []
+    for (const client of wss.clients) {
+      if (client.user) {
+        users.push(client.user)
+      }
+    }
+    return users
+  }
+
+  return { broadcast, isNameTaken, onlineUsers }
 }

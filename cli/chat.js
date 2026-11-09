@@ -37,11 +37,14 @@ ws.on('open', () => {
 ws.on('message', (data) => {
   const msg = JSON.parse(data.toString())
 
-  if (msg.type === 'chat') {
+  if (msg.type === 'welcome') {
+    joined = true
+    print(styleText('green', `* connected as ${clean(msg.user)}`))
+    print(styleText('gray', `* online: ${msg.users.map(clean).join(', ')}`))
+  } else if (msg.type === 'chat') {
     const user = styleText('cyan', clean(msg.user))
     print(`${styleText('gray', time(msg.ts))} ${user}: ${clean(msg.text)}`)
   } else if (msg.type === 'system') {
-    if (msg.text === `${name} joined`) joined = true
     print(styleText('gray', `* ${clean(msg.text)}`))
   } else if (msg.type === 'error') {
     print(styleText('red', `! ${clean(msg.text)}`))

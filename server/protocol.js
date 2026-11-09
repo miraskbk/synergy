@@ -18,6 +18,10 @@ export function makeMessage(type, fields = {}) {
   return { ...fields, type, id: randomUUID(), ts: Date.now() }
 }
 
+export function send(ws, msg) {
+  ws.send(JSON.stringify(msg))
+}
+
 export function sendError(ws, text) {
-  ws.send(JSON.stringify(makeMessage('error', { text })))
+  send(ws, makeMessage('error', { text }))
 }
