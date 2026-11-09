@@ -10,7 +10,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "start": "node server/index.js",
-    "chat": "node cli/chat.js"
+    "chat": "node cli/chat.js",
+    "test": "node --test 'test/**/*.test.js'"
   },
   "keywords": [],
   "author": "",
