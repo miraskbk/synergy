@@ -12,7 +12,7 @@ export default [
     },
   },
   {
-    files: ['server/**/*.{js,mjs,cjs}', 'eslint.config.js'],
+    files: ['server/**/*.{js,mjs,cjs}', 'cli/**/*.{js,mjs,cjs}', 'eslint.config.js'],
     languageOptions: { globals: globals.node },
   },
   {
