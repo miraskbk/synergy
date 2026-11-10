@@ -11,7 +11,8 @@
     "format:check": "prettier --check .",
     "start": "node server/index.js",
     "chat": "node cli/chat.js",
-    "test": "node --test 'test/**/*.test.js'"
+    "test": "node --test 'test/**/*.test.js'",
+    "chat:local": "node cli/chat.js ws://localhost:8080"
   },
   "keywords": [],
   "author": "",
@@ -28,5 +29,8 @@
   },
   "overrides": {
     "minimatch": "^11.0.5"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

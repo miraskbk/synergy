@@ -13,16 +13,18 @@ async function fakeVerifyToken(token) {
   return fakeUsers.get(token) ?? null
 }
 
-export async function startServer() {
+export async function startServer(options = {}) {
   const { server, wss } = createServer({
     port: 0,
     heartbeatIntervalMs: 30_000,
     verifyToken: fakeVerifyToken,
+    ...options,
   })
   await once(server, 'listening')
 
   return {
     url: `ws://localhost:${server.address().port}`,
+    httpUrl: `http://localhost:${server.address().port}`,
     close() {
       for (const client of wss.clients) client.terminate()
       wss.close()

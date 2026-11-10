@@ -12,8 +12,15 @@ const handlers = new Map([
   ['code', handleCode],
 ])
 
-export function createServer({ port, heartbeatIntervalMs, verifyToken }) {
-  const server = http.createServer()
+export function createServer({ port, heartbeatIntervalMs, verifyToken, allowedUsers = null }) {
+  const server = http.createServer((req, res) => {
+    if (req.url === '/health') {
+      res.writeHead(200, { 'Content-Type': 'text/plain' })
+      return res.end('ok')
+    }
+    res.writeHead(404, { 'Content-Type': 'text/plain' })
+    res.end('This is a Synergy chat server. Connect with the Synergy CLI.')
+  })
   const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 })
   const hub = createHub(wss)
 
@@ -32,6 +39,10 @@ export function createServer({ port, heartbeatIntervalMs, verifyToken }) {
       return rejectUpgrade(socket, 503, 'Service Unavailable')
     }
     if (!user) return rejectUpgrade(socket, 401, 'Unauthorized')
+    if (allowedUsers && !allowedUsers.includes(user.login.toLowerCase())) {
+      console.log(`${user.login} is not on the allowed users list`)
+      return rejectUpgrade(socket, 403, 'Forbidden')
+    }
 
     wss.handleUpgrade(req, socket, head, (ws) => {
       ws.user = user

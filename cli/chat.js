@@ -30,7 +30,8 @@ if (command === 'logout') {
   process.exit(0)
 }
 
-const url = command ?? 'ws://localhost:8080'
+const DEFAULT_URL = 'ws://localhost:8080'
+const url = command ?? process.env.SYNERGY_URL ?? DEFAULT_URL
 const token = await loadToken()
 
 if (!token) {
@@ -110,6 +111,13 @@ ws.on('close', () => {
 ws.on('unexpected-response', (req, res) => {
   if (res.statusCode === 401) {
     console.error(styleText('red', 'Your login expired or was revoked. Run: npm run chat -- login'))
+  } else if (res.statusCode === 403) {
+    console.error(
+      styleText(
+        'red',
+        'This server only lets in invited users. Ask the owner to add your GitHub login.',
+      ),
+    )
   } else {
     console.error(
       styleText('red', `server refused the connection: ${res.statusCode} ${res.statusMessage}`),
