@@ -30,7 +30,7 @@ if (command === 'logout') {
   process.exit(0)
 }
 
-const DEFAULT_URL = 'ws://localhost:8080'
+const DEFAULT_URL = 'wss://synergy-dv3z.onrender.com'
 const url = command ?? process.env.SYNERGY_URL ?? DEFAULT_URL
 const token = await loadToken()
 
@@ -38,6 +38,10 @@ if (!token) {
   console.error('You are not logged in. Run: npm run chat -- login')
   process.exit(1)
 }
+
+console.log(
+  styleText('gray', `connecting to ${url} (can take up to a minute if the server was asleep)...`),
+)
 
 const ws = new WebSocket(url, {
   headers: { Authorization: `Bearer ${token}` },

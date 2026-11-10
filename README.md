@@ -12,7 +12,7 @@ git clone https://github.com/miraskbk/synergy.git
 cd synergy
 npm install
 npm run chat -- login   # opens a GitHub code to approve in your browser
-npm run chat            # connects to the server
+npm run chat            # connects to wss://synergy-dv3z.onrender.com
 ```
 
 ## In the chat
