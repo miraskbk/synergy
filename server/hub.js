@@ -10,24 +10,21 @@ export function createHub(wss) {
     }
   }
 
-  function isNameTaken(name) {
+  function connectionCount(userId) {
+    let count = 0
     for (const client of wss.clients) {
-      if (client.user === name) {
-        return true
-      }
+      if (client.user?.id === userId) count++
     }
-    return false
+    return count
   }
 
   function onlineUsers() {
-    const users = []
+    const logins = new Set()
     for (const client of wss.clients) {
-      if (client.user) {
-        users.push(client.user)
-      }
+      if (client.user) logins.add(client.user.login)
     }
-    return users
+    return [...logins]
   }
 
-  return { broadcast, isNameTaken, onlineUsers }
+  return { broadcast, connectionCount, onlineUsers }
 }

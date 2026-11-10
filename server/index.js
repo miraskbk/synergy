@@ -1,11 +1,16 @@
 import { PORT, HEARTBEAT_INTERVAL_MS } from './config.js'
 import { createServer } from './app.js'
+import { verifyGitHubToken } from './github.js'
 
-const wss = createServer({ port: PORT, heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS })
+const { server } = createServer({
+  port: PORT,
+  heartbeatIntervalMs: HEARTBEAT_INTERVAL_MS,
+  verifyToken: verifyGitHubToken,
+})
 
-wss.on('listening', () => console.log(`listening on ws://localhost:${PORT}`))
+server.on('listening', () => console.log(`listening on ws://localhost:${PORT}`))
 
-wss.on('error', (err) => {
+server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(`port ${PORT} already in use`)
   } else {

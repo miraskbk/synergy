@@ -1,23 +1,39 @@
 import { once } from 'node:events'
+import { setTimeout, clearTimeout } from 'node:timers'
 import { WebSocket } from 'ws'
 import { createServer } from '../server/app.js'
-import { setTimeout, clearTimeout } from 'node:timers'
+
+const fakeUsers = new Map([
+  ['alice-token', { id: 1, login: 'alice' }],
+  ['bob-token', { id: 2, login: 'bob' }],
+])
+
+async function fakeVerifyToken(token) {
+  if (token === 'github-down-token') throw new Error('GitHub unreachable')
+  return fakeUsers.get(token) ?? null
+}
 
 export async function startServer() {
-  const wss = createServer({ port: 0, heartbeatIntervalMs: 30_000 })
-  await once(wss, 'listening')
+  const { server, wss } = createServer({
+    port: 0,
+    heartbeatIntervalMs: 30_000,
+    verifyToken: fakeVerifyToken,
+  })
+  await once(server, 'listening')
 
   return {
-    url: `ws://localhost:${wss.address().port}`,
+    url: `ws://localhost:${server.address().port}`,
     close() {
       for (const client of wss.clients) client.terminate()
       wss.close()
+      server.close()
     },
   }
 }
 
-export async function connect(url) {
-  const ws = new WebSocket(url)
+export async function connect(url, token) {
+  const headers = token ? { Authorization: `Bearer ${token}` } : {}
+  const ws = new WebSocket(url, { headers })
   const inbox = []
   const waiting = []
 
@@ -55,10 +71,9 @@ export async function connect(url) {
   }
 }
 
-export async function join(url, user) {
-  const client = await connect(url)
-  client.send({ type: 'join', user })
-  await client.next() //welcome
-  await client.next() //"<user> joined"
+export async function login(url, token) {
+  const client = await connect(url, token)
+  await client.next()
+  await client.next()
   return client
 }

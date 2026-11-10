@@ -1,6 +1,6 @@
 import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { startServer, connect, join } from './helpers.js'
+import { startServer, connect, login } from './helpers.js'
 
 let server
 
@@ -12,13 +12,24 @@ afterEach(() => {
   server.close()
 })
 
-test('join sends a welcome with the trimmed name and online users', async () => {
-  const alice = await join(server.url, 'alice')
-  const bob = await connect(server.url)
+test('connecting without a token is rejected', async () => {
+  await assert.rejects(connect(server.url), /401/)
+})
 
-  bob.send({ type: 'join', user: '  bob  ' })
+test('connecting with an invalid token is rejected', async () => {
+  await assert.rejects(connect(server.url, 'stolen-or-expired'), /401/)
+})
+
+test('a verifier failure rejects with 503 instead of crashing', async () => {
+  await assert.rejects(connect(server.url, 'github-down-token'), /503/)
+  await login(server.url, 'alice-token')
+})
+
+test('a valid token gets a welcome with the GitHub login and online users', async () => {
+  const alice = await login(server.url, 'alice-token')
+  const bob = await connect(server.url, 'bob-token')
+
   const welcome = await bob.next()
-
   assert.equal(welcome.type, 'welcome')
   assert.equal(welcome.user, 'bob')
   assert.deepEqual(welcome.users.sort(), ['alice', 'bob'])
@@ -30,9 +41,19 @@ test('join sends a welcome with the trimmed name and online users', async () => 
   assert.equal(notice.text, 'bob joined')
 })
 
-test('chat is broadcast with the server-side user name', async () => {
-  const alice = await join(server.url, 'alice')
-  const bob = await join(server.url, 'bob')
+test('join messages are no longer accepted', async () => {
+  const alice = await login(server.url, 'alice-token')
+
+  alice.send({ type: 'join', user: 'admin' })
+  const reply = await alice.next()
+
+  assert.equal(reply.type, 'error')
+  assert.equal(reply.text, 'unknown message type: join')
+})
+
+test('chat uses the verified login, not a name sent by the client', async () => {
+  const alice = await login(server.url, 'alice-token')
+  const bob = await login(server.url, 'bob-token')
   await alice.next() // "bob joined"
 
   alice.send({ type: 'chat', user: 'bob', text: '  indented code' })
@@ -43,29 +64,38 @@ test('chat is broadcast with the server-side user name', async () => {
   assert.equal(msg.text, '  indented code')
 })
 
-test('duplicate names are rejected', async () => {
-  await join(server.url, 'alice')
-  const other = await connect(server.url)
+test('a second connection from the same user is allowed and not announced', async () => {
+  const bob = await login(server.url, 'bob-token')
+  await login(server.url, 'alice-token')
+  await bob.next() // "alice joined"
 
-  other.send({ type: 'join', user: 'alice' })
-  const reply = await other.next()
+  const aliceLaptop = await connect(server.url, 'alice-token')
+  const welcome = await aliceLaptop.next()
+  assert.deepEqual(welcome.users.sort(), ['alice', 'bob'])
 
-  assert.equal(reply.type, 'error')
-  assert.equal(reply.text, 'name already taken')
+  bob.send({ type: 'chat', text: 'ping' })
+  const next = await bob.next()
+  assert.equal(next.text, 'ping', 'bob should not see a second "alice joined"')
 })
 
-test('cannot chat before joining', async () => {
-  const client = await connect(server.url)
+test('"left" is announced only when the last connection closes', async () => {
+  const bob = await login(server.url, 'bob-token')
+  const aliceDesktop = await login(server.url, 'alice-token')
+  await bob.next() // "alice joined"
+  const aliceLaptop = await connect(server.url, 'alice-token')
+  await aliceLaptop.next() // welcome
 
-  client.send({ type: 'chat', text: 'hi' })
-  const reply = await client.next()
+  aliceDesktop.close()
+  bob.send({ type: 'chat', text: 'still here?' })
+  assert.equal((await bob.next()).text, 'still here?', 'alice still has a connection')
 
-  assert.equal(reply.type, 'error')
-  assert.equal(reply.text, 'join first')
+  aliceLaptop.close()
+  const notice = await bob.next()
+  assert.equal(notice.text, 'alice left')
 })
 
 test('invalid messages get errors and do not crash the server', async () => {
-  const client = await connect(server.url)
+  const client = await login(server.url, 'alice-token')
 
   for (const [input, expected] of [
     ['null', 'message must be a JSON object'],
@@ -79,27 +109,15 @@ test('invalid messages get errors and do not crash the server', async () => {
     assert.equal(reply.text, expected)
   }
 
-  await join(server.url, 'still-works')
+  await login(server.url, 'bob-token')
 })
 
 test('empty and too long messages are rejected', async () => {
-  const alice = await join(server.url, 'alice')
+  const alice = await login(server.url, 'alice-token')
 
   alice.send({ type: 'chat', text: '   ' })
   assert.equal((await alice.next()).text, 'message is empty')
 
   alice.send({ type: 'chat', text: 'x'.repeat(4001) })
   assert.equal((await alice.next()).text, 'message longer than 4000 characters')
-})
-
-test('leaving is announced to others', async () => {
-  const alice = await join(server.url, 'alice')
-  const bob = await join(server.url, 'bob')
-  await alice.next() // "bob joined"
-
-  bob.close()
-  const notice = await alice.next()
-
-  assert.equal(notice.type, 'system')
-  assert.equal(notice.text, 'bob left')
 })
