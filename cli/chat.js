@@ -3,6 +3,7 @@ import { styleText } from 'node:util'
 import { WebSocket } from 'ws'
 import { deviceLogin, fetchLogin, saveToken, loadToken, deleteToken } from './auth.js'
 import { readSnippet, SHARE_USAGE } from './share.js'
+import { colorUser } from './colors.js'
 import { MAX_CODE_LENGTH } from '../server/config.js'
 
 const command = process.argv[2]
@@ -69,7 +70,7 @@ function showCode(msg) {
   const endLine = msg.startLine + lines.length - 1
   const width = String(endLine).length
   const range = lines.length === 1 ? `line ${msg.startLine}` : `lines ${msg.startLine}-${endLine}`
-  const user = styleText('cyan', clean(msg.user))
+  const user = colorUser(clean(msg.user))
 
   print(
     `${styleText('gray', time(msg.ts))} ${user} shared ${styleText('bold', clean(msg.file))} ${range}:`,
@@ -93,10 +94,11 @@ ws.on('message', (data) => {
   const msg = JSON.parse(data.toString())
 
   if (msg.type === 'welcome') {
-    print(styleText('green', `* connected as ${clean(msg.user)}`))
-    print(styleText('gray', `* online: ${msg.users.map(clean).join(', ')}`))
+    print(`${styleText('green', '* connected as')} ${colorUser(clean(msg.user))}`)
+    const online = msg.users.map((login) => colorUser(clean(login)))
+    print(`${styleText('gray', '* online:')} ${online.join(styleText('gray', ', '))}`)
   } else if (msg.type === 'chat') {
-    const user = styleText('cyan', clean(msg.user))
+    const user = colorUser(clean(msg.user))
     print(`${styleText('gray', time(msg.ts))} ${user}: ${clean(msg.text)}`)
   } else if (msg.type === 'code') {
     showCode(msg)
