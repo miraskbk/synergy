@@ -2,6 +2,8 @@ import readline from 'node:readline'
 import { styleText } from 'node:util'
 import { WebSocket } from 'ws'
 import { deviceLogin, fetchLogin, saveToken, loadToken, deleteToken } from './auth.js'
+import { readSnippet, SHARE_USAGE } from './share.js'
+import { MAX_CODE_LENGTH } from '../server/config.js'
 
 const command = process.argv[2]
 
@@ -57,6 +59,31 @@ function time(ts) {
   return new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+function showCode(msg) {
+  const lines = msg.text.split('\n')
+  const endLine = msg.startLine + lines.length - 1
+  const width = String(endLine).length
+  const range = lines.length === 1 ? `line ${msg.startLine}` : `lines ${msg.startLine}-${endLine}`
+  const user = styleText('cyan', clean(msg.user))
+
+  print(
+    `${styleText('gray', time(msg.ts))} ${user} shared ${styleText('bold', clean(msg.file))} ${range}:`,
+  )
+  lines.forEach((line, i) => {
+    const number = String(msg.startLine + i).padStart(width)
+    print(`  ${styleText('gray', `${number} │`)} ${clean(line)}`)
+  })
+}
+
+async function share(arg) {
+  try {
+    const snippet = await readSnippet(arg, MAX_CODE_LENGTH)
+    ws.send(JSON.stringify({ type: 'code', ...snippet }))
+  } catch (err) {
+    print(styleText('yellow', err.message))
+  }
+}
+
 ws.on('message', (data) => {
   const msg = JSON.parse(data.toString())
 
@@ -66,6 +93,8 @@ ws.on('message', (data) => {
   } else if (msg.type === 'chat') {
     const user = styleText('cyan', clean(msg.user))
     print(`${styleText('gray', time(msg.ts))} ${user}: ${clean(msg.text)}`)
+  } else if (msg.type === 'code') {
+    showCode(msg)
   } else if (msg.type === 'system') {
     print(styleText('gray', `* ${clean(msg.text)}`))
   } else if (msg.type === 'error') {
@@ -98,9 +127,13 @@ rl.on('line', (line) => {
   if (line === '/quit') return ws.close()
   if (line.trim() === '') return rl.prompt()
 
-  ws.send(JSON.stringify({ type: 'chat', text: line }))
   readline.moveCursor(process.stdout, 0, -1)
   readline.clearLine(process.stdout, 0)
+
+  if (line === '/share') return print(styleText('yellow', SHARE_USAGE))
+  if (line.startsWith('/share ')) return share(line.slice('/share '.length))
+
+  ws.send(JSON.stringify({ type: 'chat', text: line }))
 })
 
 rl.on('close', () => ws.close())

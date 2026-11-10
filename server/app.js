@@ -5,12 +5,16 @@ import { createHub } from './hub.js'
 import { startHeartbeat } from './heartbeat.js'
 import { getBearerToken, rejectUpgrade } from './auth.js'
 import { handleChat } from './handlers/chat.js'
+import { handleCode } from './handlers/code.js'
 
-const handlers = new Map([['chat', handleChat]])
+const handlers = new Map([
+  ['chat', handleChat],
+  ['code', handleCode],
+])
 
 export function createServer({ port, heartbeatIntervalMs, verifyToken }) {
   const server = http.createServer()
-  const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 })
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 64 * 1024 })
   const hub = createHub(wss)
 
   const stopHeartbeat = startHeartbeat(wss, heartbeatIntervalMs)
