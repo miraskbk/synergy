@@ -23,6 +23,8 @@ npm run chat            # connects to wss://synergy-dv3z.onrender.com
 | `/share path/to/file.js:10-20` | shares lines 10–20 of a file on your disk |
 | `/share path/to/file.js:10`    | shares one line                           |
 | `/share path/to/file.js`       | shares the whole file                     |
+| `/diff`                        | shares all your uncommitted changes       |
+| `/diff path/to/file.js`        | shares the changes in one file or folder  |
 | `/quit`                        | leaves                                    |
 
 File paths are relative to the folder you started the chat in.
