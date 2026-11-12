@@ -3,6 +3,7 @@ import { styleText } from 'node:util'
 import { WebSocket } from 'ws'
 import { deviceLogin, fetchLogin, saveToken, loadToken, deleteToken } from './auth.js'
 import { readSnippet, SHARE_USAGE } from './share.js'
+import { readDiff } from './diff.js'
 import { colorUser } from './colors.js'
 import { MAX_CODE_LENGTH } from '../server/config.js'
 
@@ -81,10 +82,40 @@ function showCode(msg) {
   })
 }
 
+function showDiff(msg) {
+  const user = colorUser(clean(msg.user))
+  const what = msg.file ? `changes in ${styleText('bold', clean(msg.file))}` : `their changes`
+  print(`${styleText('gray', time(msg.ts))} ${user} shared ${what}:`)
+
+  const lines = msg.text.split('\n')
+  if (lines.at(-1) === '') lines.pop()
+
+  for (const line of lines) {
+    let color = null
+    if (line.startsWith('+++') || line.startsWith('---')) color = 'bold'
+    else if (line.startsWith('+')) color = 'green'
+    else if (line.startsWith('-')) color = 'red'
+    else if (line.startsWith('@@')) color = 'cyan'
+    else if (line.startsWith('diff ') || line.startsWith('index ')) color = 'gray'
+
+    const text = clean(line)
+    print(` ${color ? styleText(color, text) : text}`)
+  }
+}
+
 async function share(arg) {
   try {
     const snippet = await readSnippet(arg, MAX_CODE_LENGTH)
     ws.send(JSON.stringify({ type: 'code', ...snippet }))
+  } catch (err) {
+    print(styleText('yellow', err.message))
+  }
+}
+
+async function diff(arg) {
+  try {
+    const changes = await readDiff(arg, MAX_CODE_LENGTH)
+    ws.send(JSON.stringify({ type: 'diff', ...changes }))
   } catch (err) {
     print(styleText('yellow', err.message))
   }
@@ -102,6 +133,8 @@ ws.on('message', (data) => {
     print(`${styleText('gray', time(msg.ts))} ${user}: ${clean(msg.text)}`)
   } else if (msg.type === 'code') {
     showCode(msg)
+  } else if (msg.type === 'diff') {
+    showDiff(msg)
   } else if (msg.type === 'system') {
     print(styleText('gray', `* ${clean(msg.text)}`))
   } else if (msg.type === 'error') {
@@ -146,6 +179,7 @@ rl.on('line', (line) => {
 
   if (line === '/share') return print(styleText('yellow', SHARE_USAGE))
   if (line.startsWith('/share ')) return share(line.slice('/share '.length))
+  if (line === '/diff' || line.startsWith('/diff ')) return diff(line.slice('/diff '.length))
 
   ws.send(JSON.stringify({ type: 'chat', text: line }))
 })

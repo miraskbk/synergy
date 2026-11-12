@@ -6,10 +6,12 @@ import { startHeartbeat } from './heartbeat.js'
 import { getBearerToken, rejectUpgrade } from './auth.js'
 import { handleChat } from './handlers/chat.js'
 import { handleCode } from './handlers/code.js'
+import { handleDiff } from './handlers/diff.js'
 
 const handlers = new Map([
   ['chat', handleChat],
   ['code', handleCode],
+  ['diff', handleDiff],
 ])
 
 export function createServer({ port, heartbeatIntervalMs, verifyToken, allowedUsers = null }) {
